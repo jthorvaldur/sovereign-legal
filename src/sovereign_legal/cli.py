@@ -7,6 +7,8 @@ classify court types.
 """
 
 import json
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -15,9 +17,11 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 console = Console()
+
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+TRANSLATIONS_FILE = DATA_DIR / "translations.yaml"
 
 # ---------------------------------------------------------------------------
 # Jurisdictional layer definitions
@@ -62,7 +66,6 @@ JURISDICTION_MARKERS = {
             "living soul", "offspring", "natural law", "laws of nature",
             "bodily autonomy", "sacred",
         ],
-        "patterns": [],
     },
     3: {
         "keywords": [
@@ -71,7 +74,6 @@ JURISDICTION_MARKERS = {
             "the people", "freehold", "allodial", "oath", "affidavit",
             "injured party", "harmed party", "writ",
         ],
-        "patterns": [],
     },
     2: {
         "keywords": [
@@ -80,7 +82,6 @@ JURISDICTION_MARKERS = {
             "petitioner", "respondent", "motion", "hearing", "ruling",
             "public policy", "section", "subsection", "supreme court rule",
         ],
-        "patterns": [],
     },
     1: {
         "keywords": [
@@ -89,7 +90,6 @@ JURISDICTION_MARKERS = {
             "corporate", "admiralty", "maritime", "negotiable instrument",
             "commercial paper", "trust", "estate", "asset", "liability",
         ],
-        "patterns": [],
     },
 }
 
@@ -141,121 +141,6 @@ COURT_TYPES = {
 }
 
 # ---------------------------------------------------------------------------
-# Black's Law translations (subset for CLI)
-# ---------------------------------------------------------------------------
-
-TRANSLATIONS = {
-    "custody": {
-        "common_english": "Having care of someone",
-        "blacks_law": "Legal right to control and maintain a person; care awarded by a court",
-        "natural_rights": "Stewardship of offspring — a natural duty, not a state-granted right",
-        "commercial": "Possession of an asset; physical control of property or a person",
-    },
-    "child": {
-        "common_english": "Young human being",
-        "blacks_law": "A person under the age of majority; a ward of the state under court jurisdiction",
-        "natural_rights": "Offspring — a living being connected by blood and nature to the parent",
-        "commercial": "A dependent; a liability or asset on a balance sheet; a trust beneficiary",
-    },
-    "person": {
-        "common_english": "A human being",
-        "blacks_law": "A legal entity with rights and obligations; includes corporations",
-        "natural_rights": "Man or woman — a living soul, flesh and blood; not a legal construct",
-        "commercial": "PERSON — the corporate fiction, the ALL CAPS name on government documents",
-    },
-    "property": {
-        "common_english": "Things you own",
-        "blacks_law": "Real or personal property as defined by statute; subject to taxation",
-        "natural_rights": "That which a man or woman holds by right of labor and nature",
-        "commercial": "Commercial asset; subject to liens, encumbrances, UCC filings",
-    },
-    "title": {
-        "common_english": "Ownership",
-        "blacks_law": "Legal right to ownership as recognized by the state; legal vs equitable title",
-        "natural_rights": "Natural dominion — authority over one's body, labor, and possessions",
-        "commercial": "Certificate of ownership of a commercial asset; subject to liens",
-    },
-    "order": {
-        "common_english": "A command",
-        "blacks_law": "A directive of a court, enforceable by contempt",
-        "natural_rights": "A request — no man has authority to command another absent consent",
-        "commercial": "A commercial directive within an agreed framework",
-    },
-    "judgment": {
-        "common_english": "A decision",
-        "blacks_law": "Final determination of a court of competent jurisdiction",
-        "natural_rights": "An opinion — carries no weight absent jurisdiction over the living man or woman",
-        "commercial": "Settlement of accounts; final determination of debts between entities",
-    },
-    "court": {
-        "common_english": "Place where justice happens",
-        "blacks_law": "A tribunal established by law for the administration of justice",
-        "natural_rights": "An assembly — where men and women resolve disputes by reason and evidence",
-        "commercial": "A commercial venue for settlement of disputes between corporate entities",
-    },
-    "jurisdiction": {
-        "common_english": "Authority over a matter",
-        "blacks_law": "Power of a court to hear and decide a case; subject-matter + personal jurisdiction",
-        "natural_rights": "Authority that exists only by consent — no man has inherent jurisdiction over another",
-        "commercial": "Commercial jurisdiction created by contract — filing = accepting jurisdiction",
-    },
-    "consent": {
-        "common_english": "Agreement",
-        "blacks_law": "Voluntary agreement by a person of sufficient capacity; can be implied",
-        "natural_rights": "Informed, voluntary, explicit agreement — cannot be coerced or presumed",
-        "commercial": "Acceptance of terms; entering the court system = consenting to commercial jurisdiction",
-    },
-    "contract": {
-        "common_english": "An agreement",
-        "blacks_law": "A legally enforceable agreement with consideration",
-        "natural_rights": "Meeting of minds — requires full disclosure, mutual benefit, voluntary participation",
-        "commercial": "A commercial instrument; foundation of all commercial jurisdiction",
-    },
-    "guardian": {
-        "common_english": "Protector",
-        "blacks_law": "A person appointed by a court to manage the affairs of another",
-        "natural_rights": "A protector by natural duty and love, not by state appointment",
-        "commercial": "A trustee managing assets for a beneficiary; a commercial fiduciary role",
-    },
-    "parent": {
-        "common_english": "Mother or father",
-        "blacks_law": "Person with legal responsibility for a child; includes adoptive/step-parents",
-        "natural_rights": "Mother or father — the one who gave life; the bond is beyond legal definition",
-        "commercial": "Originator of a corporate entity; primary claimant to the 'asset'",
-    },
-    "domicile": {
-        "common_english": "Where you live",
-        "blacks_law": "True, fixed, permanent home; determines jurisdiction",
-        "natural_rights": "Home — where a man or woman dwells by choice; not a legal construct",
-        "commercial": "Registered address of a corporate entity; determines governing jurisdiction",
-    },
-    "residence": {
-        "common_english": "Where you stay",
-        "blacks_law": "A place where a person lives; may differ from domicile",
-        "natural_rights": "The place where one currently sleeps — temporary, irrelevant to natural rights",
-        "commercial": "Operating address of the corporate entity",
-    },
-    "citizen": {
-        "common_english": "Member of a country",
-        "blacks_law": "Person owing allegiance to a state, entitled to its protection",
-        "natural_rights": "A free man or woman — not defined by allegiance to a state",
-        "commercial": "Registered member of a corporate structure (the state as corporation)",
-    },
-    "subject": {
-        "common_english": "One who is governed",
-        "blacks_law": "One who owes allegiance to a sovereign and is governed by their laws",
-        "natural_rights": "No man is subject to another absent consent",
-        "commercial": "A party to a commercial arrangement; subject to the contract terms",
-    },
-    "sovereign": {
-        "common_english": "Supreme authority",
-        "blacks_law": "The supreme power in a state; in democracies, sovereignty resides in the people",
-        "natural_rights": "Each man and woman is sovereign over themselves — self-governing",
-        "commercial": "Not applicable — only parties to contracts, creditors, and debtors",
-    },
-}
-
-# ---------------------------------------------------------------------------
 # Question templates
 # ---------------------------------------------------------------------------
 
@@ -272,18 +157,96 @@ QUESTION_TEMPLATES = [
     "Is this proceeding treating {subject} as a commercial transaction? If so, where is the contract?",
 ]
 
+# ---------------------------------------------------------------------------
+# Term database (YAML-backed, LLM-expandable)
+# ---------------------------------------------------------------------------
+
+def load_translations() -> dict:
+    """Load translations from YAML data file."""
+    if TRANSLATIONS_FILE.exists():
+        return yaml.safe_load(TRANSLATIONS_FILE.read_text()) or {}
+    return {}
+
+
+def save_translations(db: dict) -> None:
+    """Write translations back to YAML, preserving the header comment."""
+    header = (
+        "# translations.yaml — Jurisdictional term database\n"
+        "# Each term has definitions across 4 layers.\n"
+        "# New terms are generated by LLM and appended here.\n"
+        "# Source: sovereign-legal conceptual framework "
+        "(Black's Law + natural rights + commercial/admiralty)\n\n"
+    )
+    TRANSLATIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    TRANSLATIONS_FILE.write_text(
+        header + yaml.dump(db, default_flow_style=False, sort_keys=False, allow_unicode=True)
+    )
+
+
+def generate_translation(term: str) -> dict | None:
+    """Use Claude to generate a 4-layer translation for an unknown term."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+    except Exception:
+        return None
+
+    system = (
+        "You are a jurisdictional language analyst. You translate legal terms "
+        "across four jurisdictional layers:\n\n"
+        "1. Common English — plain meaning as understood by ordinary people\n"
+        "2. Black's Law / Statutory — meaning in statutory law, Black's Law Dictionary\n"
+        "3. Natural Rights — meaning in natural law (rights by nature, not state grant; "
+        "Locke, Blackstone, biological reality)\n"
+        "4. Commercial / Admiralty — meaning in commercial/banking/UCC/admiralty law "
+        "(corporate fictions, contracts, debts)\n\n"
+        "Key principle: using the wrong word accepts the wrong jurisdiction. "
+        "Each definition should be 1-2 sentences, substantive, and show HOW "
+        "the meaning shifts across jurisdictions.\n\n"
+        "Respond ONLY with valid YAML (no markdown fences, no commentary) in this exact format:\n"
+        "common_english: ...\n"
+        "blacks_law: ...\n"
+        "natural_rights: ...\n"
+        "commercial: ..."
+    )
+
+    console.print(f"[dim]Generating translation for '[/dim][bold]{term}[/bold][dim]'...[/dim]")
+
+    try:
+        resp = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=400,
+            system=system,
+            messages=[{"role": "user", "content": f"Translate the term: {term}"}],
+        )
+        text = resp.content[0].text.strip()
+        # Strip markdown fences if present
+        text = re.sub(r'^```\w*\n?', '', text)
+        text = re.sub(r'\n?```$', '', text)
+        entry = yaml.safe_load(text)
+        if isinstance(entry, dict) and all(
+            k in entry for k in ("common_english", "blacks_law", "natural_rights", "commercial")
+        ):
+            return entry
+    except Exception as e:
+        console.print(f"[red]Generation failed: {e}[/red]")
+
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Output formatting helpers
 # ---------------------------------------------------------------------------
 
 def output_as_json(data: dict) -> None:
-    """Print data as formatted JSON."""
     console.print_json(json.dumps(data, indent=2, default=str))
 
 
 def output_as_yaml(data: dict) -> None:
-    """Print data as YAML."""
     console.print(yaml.dump(data, default_flow_style=False, sort_keys=False))
 
 
@@ -303,6 +266,92 @@ def main():
     Four-layer model: Natural Law > Common Law > Statutory/Equity > Commercial/Admiralty.
     """
     pass
+
+
+# ---------------------------------------------------------------------------
+# sovereign translate
+# ---------------------------------------------------------------------------
+
+@main.command("translate")
+@click.argument("term")
+@click.option("--format", "fmt", type=click.Choice(["table", "json", "yaml"]), default="table")
+@click.option("--no-generate", is_flag=True, help="Don't generate missing terms via LLM.")
+def translate(term: str, fmt: str, no_generate: bool):
+    """Show a legal term across all four jurisdictional layers.
+
+    Translates between common English, Black's Law, natural rights,
+    and commercial/admiralty definitions. Unknown terms are generated
+    by LLM and saved to the term database.
+    """
+    db = load_translations()
+    key = term.lower().strip()
+    generated = False
+
+    if key not in db:
+        if no_generate:
+            available = ", ".join(sorted(db.keys()))
+            console.print(f"[red]Term '{term}' not found.[/red]")
+            console.print(f"[dim]Available: {available}[/dim]")
+            console.print("[dim]Remove --no-generate to auto-generate via LLM.[/dim]")
+            sys.exit(1)
+
+        entry = generate_translation(key)
+        if entry is None:
+            available = ", ".join(sorted(db.keys()))
+            console.print(f"[red]Term '{term}' not found and generation failed.[/red]")
+            console.print(f"[dim]Available: {available}[/dim]")
+            console.print("[dim]Check ANTHROPIC_API_KEY is set.[/dim]")
+            sys.exit(1)
+
+        db[key] = entry
+        save_translations(db)
+        generated = True
+
+    entry = db[key]
+
+    data = {
+        "term": key,
+        "common_english": entry["common_english"],
+        "blacks_law_statutory": entry["blacks_law"],
+        "natural_rights": entry["natural_rights"],
+        "commercial_admiralty": entry["commercial"],
+    }
+
+    if fmt == "json":
+        data["generated"] = generated
+        output_as_json(data)
+        return
+
+    if fmt == "yaml":
+        data["generated"] = generated
+        output_as_yaml(data)
+        return
+
+    # Rich table output
+    console.print()
+    title = f"[bold]{key.upper()}[/bold] — across four jurisdictional layers"
+    if generated:
+        title += "  [dim italic](generated & saved)[/dim italic]"
+    console.print(Panel(title, style="bright_blue"))
+
+    table = Table(show_lines=True, expand=True)
+    table.add_column("Jurisdiction", style="bold", width=22)
+    table.add_column("Definition", ratio=1)
+
+    table.add_row("[bright_white]Common English[/bright_white]", entry["common_english"])
+    table.add_row("[bright_yellow]Black's Law (Statutory)[/bright_yellow]", entry["blacks_law"])
+    table.add_row("[bright_green]Natural Rights[/bright_green]", entry["natural_rights"])
+    table.add_row("[bright_red]Commercial / Admiralty[/bright_red]", entry["commercial"])
+
+    console.print(table)
+    console.print()
+    console.print(
+        "[dim]Using the wrong word accepts the wrong jurisdiction. "
+        "Choose terms that maintain your standing in the highest applicable layer.[/dim]"
+    )
+    if generated:
+        console.print(f"[dim]Term saved to {TRANSLATIONS_FILE.name} ({len(db)} terms in database).[/dim]")
+    console.print()
 
 
 # ---------------------------------------------------------------------------
@@ -333,23 +382,17 @@ def analyze_jurisdiction(file: str, fmt: str):
             "total_possible": len(markers["keywords"]),
         }
 
-    # Determine dominant jurisdiction
     dominant = max(results.values(), key=lambda r: r["count"])
 
     if fmt == "json":
         output_as_json({"file": file, "layers": results, "dominant": dominant})
         return
-
     if fmt == "yaml":
         output_as_yaml({"file": file, "layers": results, "dominant": dominant})
         return
 
-    # Table output
     console.print()
-    console.print(Panel(
-        f"[bold]Jurisdictional Analysis[/bold]\n{file}",
-        style="bright_blue",
-    ))
+    console.print(Panel(f"[bold]Jurisdictional Analysis[/bold]\n{file}", style="bright_blue"))
 
     table = Table(title="Layer Analysis", show_lines=True)
     table.add_column("Layer", style="bold", width=8)
@@ -378,91 +421,12 @@ def analyze_jurisdiction(file: str, fmt: str):
     console.print(Panel(
         f"[bold {dom_color}]Dominant jurisdiction: Layer {dominant['layer']} — {dominant['name']}[/bold {dom_color}]\n"
         f"[dim]{LAYERS[dominant['layer']]['description']}[/dim]",
-        title="Assessment",
-        style=dom_color,
+        title="Assessment", style=dom_color,
     ))
-
-    # Suggest questions
     console.print()
     console.print("[bold]Suggested questions:[/bold]")
     for q in QUESTION_TEMPLATES[:3]:
         console.print(f"  [dim]>[/dim] {q.format(subject='this matter')}")
-    console.print()
-
-
-# ---------------------------------------------------------------------------
-# sovereign translate
-# ---------------------------------------------------------------------------
-
-@main.command("translate")
-@click.argument("term")
-@click.option("--format", "fmt", type=click.Choice(["table", "json", "yaml"]), default="table")
-def translate(term: str, fmt: str):
-    """Show a legal term across all four jurisdictional layers.
-
-    Translates between common English, Black's Law, natural rights,
-    and commercial/admiralty definitions.
-    """
-    key = term.lower().strip()
-
-    if key not in TRANSLATIONS:
-        available = ", ".join(sorted(TRANSLATIONS.keys()))
-        console.print(f"[red]Term '{term}' not found.[/red]")
-        console.print(f"[dim]Available terms: {available}[/dim]")
-        sys.exit(1)
-
-    entry = TRANSLATIONS[key]
-
-    data = {
-        "term": key,
-        "common_english": entry["common_english"],
-        "blacks_law_statutory": entry["blacks_law"],
-        "natural_rights": entry["natural_rights"],
-        "commercial_admiralty": entry["commercial"],
-    }
-
-    if fmt == "json":
-        output_as_json(data)
-        return
-
-    if fmt == "yaml":
-        output_as_yaml(data)
-        return
-
-    # Rich table output
-    console.print()
-    console.print(Panel(
-        f"[bold]{key.upper()}[/bold] — across four jurisdictional layers",
-        style="bright_blue",
-    ))
-
-    table = Table(show_lines=True, expand=True)
-    table.add_column("Jurisdiction", style="bold", width=22)
-    table.add_column("Definition", ratio=1)
-
-    table.add_row(
-        "[bright_white]Common English[/bright_white]",
-        entry["common_english"],
-    )
-    table.add_row(
-        "[bright_yellow]Black's Law (Statutory)[/bright_yellow]",
-        entry["blacks_law"],
-    )
-    table.add_row(
-        "[bright_green]Natural Rights[/bright_green]",
-        entry["natural_rights"],
-    )
-    table.add_row(
-        "[bright_red]Commercial / Admiralty[/bright_red]",
-        entry["commercial"],
-    )
-
-    console.print(table)
-    console.print()
-    console.print(
-        "[dim]Using the wrong word accepts the wrong jurisdiction. "
-        "Choose terms that maintain your standing in the highest applicable layer.[/dim]"
-    )
     console.print()
 
 
@@ -474,11 +438,7 @@ def translate(term: str, fmt: str):
 @click.argument("text")
 @click.option("--format", "fmt", type=click.Choice(["table", "json", "yaml"]), default="table")
 def question(text: str, fmt: str):
-    """Generate jurisdiction-challenging questions from a statement or topic.
-
-    Takes a statement, court order excerpt, or topic and produces questions
-    designed to challenge jurisdiction, demand disclosure, and assert standing.
-    """
+    """Generate jurisdiction-challenging questions from a statement or topic."""
     subject = text.strip()
 
     questions = {
@@ -502,23 +462,19 @@ def question(text: str, fmt: str):
     if fmt == "json":
         output_as_json({"subject": subject, "questions": questions})
         return
-
     if fmt == "yaml":
         output_as_yaml({"subject": subject, "questions": questions})
         return
 
     console.print()
     console.print(Panel(
-        f"[bold]Jurisdiction-Challenging Questions[/bold]\n"
-        f"Subject: [italic]{subject}[/italic]",
+        f"[bold]Jurisdiction-Challenging Questions[/bold]\nSubject: [italic]{subject}[/italic]",
         style="bright_blue",
     ))
-
     for category, qlist in questions.items():
         console.print(f"\n[bold bright_cyan]{category.upper()}[/bold bright_cyan]")
         for q in qlist:
             console.print(f"  [dim]>[/dim] {q}")
-
     console.print()
     console.print(
         "[dim]Questions assert jurisdiction; statements accept it. "
@@ -535,17 +491,11 @@ def question(text: str, fmt: str):
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--format", "fmt", type=click.Choice(["table", "json", "yaml"]), default="table")
 def identify_court(file: str, fmt: str):
-    """Classify the type of court based on a legal document.
+    """Classify the type of court based on a legal document."""
+    raw = Path(file).read_text(errors="replace")
+    text = raw.lower()
 
-    Analyzes language patterns to determine whether the court is operating
-    as a banking/commercial court, congressional/statutory court, equity
-    court, or common law court.
-    """
-    text = Path(file).read_text(errors="replace").lower()
-
-    # Check for ALL CAPS names (strong commercial indicator)
-    import re
-    all_caps_names = re.findall(r'\b[A-Z]{2,}\s+[A-Z]{2,}\b', Path(file).read_text(errors="replace"))
+    all_caps_names = re.findall(r'\b[A-Z]{2,}\s+[A-Z]{2,}\b', raw)
     has_all_caps = len(all_caps_names) > 0
 
     results = {}
@@ -553,7 +503,7 @@ def identify_court(file: str, fmt: str):
         found = [m for m in court_info["markers"] if m in text]
         score = len(found)
         if court_id == "banking" and has_all_caps:
-            score += 3  # ALL CAPS names are a strong commercial indicator
+            score += 3
         results[court_id] = {
             "type": court_info["label"],
             "layer": court_info["layer"],
@@ -562,7 +512,6 @@ def identify_court(file: str, fmt: str):
             "description": court_info["description"],
         }
 
-    # Sort by score
     ranked = sorted(results.values(), key=lambda r: r["score"], reverse=True)
     primary = ranked[0]
 
@@ -574,7 +523,6 @@ def identify_court(file: str, fmt: str):
             "primary": primary,
         })
         return
-
     if fmt == "yaml":
         output_as_yaml({
             "file": file,
@@ -585,17 +533,14 @@ def identify_court(file: str, fmt: str):
         return
 
     console.print()
-    console.print(Panel(
-        f"[bold]Court Type Classification[/bold]\n{file}",
-        style="bright_blue",
-    ))
+    console.print(Panel(f"[bold]Court Type Classification[/bold]\n{file}", style="bright_blue"))
 
     if has_all_caps:
         console.print(
             f"[bold bright_red]ALL CAPS names detected:[/bold bright_red] "
             f"{', '.join(all_caps_names[:5])}"
         )
-        console.print("[dim]This is a strong indicator of commercial/admiralty jurisdiction.[/dim]")
+        console.print("[dim]Strong indicator of commercial/admiralty jurisdiction.[/dim]")
         console.print()
 
     table = Table(title="Court Type Scores", show_lines=True)
@@ -608,12 +553,7 @@ def identify_court(file: str, fmt: str):
         layer_info = LAYERS[r["layer"]]
         color = layer_info["color"]
         marker_list = ", ".join(r["markers_found"][:6]) if r["markers_found"] else "none"
-        table.add_row(
-            r["type"],
-            f"[{color}]{r['layer']}[/{color}]",
-            str(r["score"]),
-            marker_list,
-        )
+        table.add_row(r["type"], f"[{color}]{r['layer']}[/{color}]", str(r["score"]), marker_list)
 
     console.print(table)
     console.print()
@@ -623,10 +563,8 @@ def identify_court(file: str, fmt: str):
         f"[bold {primary_color}]Primary classification: {primary['type']}[/bold {primary_color}]\n"
         f"Layer {primary['layer']} — {LAYERS[primary['layer']]['name']}\n\n"
         f"[dim]{primary['description']}[/dim]",
-        title="Assessment",
-        style=primary_color,
+        title="Assessment", style=primary_color,
     ))
-
     console.print()
     console.print("[bold]Key question to ask:[/bold]")
     console.print(

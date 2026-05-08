@@ -3,7 +3,7 @@ name = "sovereign-legal"
 version = "0.1.0"
 description = "Jurisdictional analysis toolkit — identify, translate, and challenge court jurisdiction"
 requires-python = ">=3.12"
-dependencies = ["click>=8.1", "pyyaml>=6.0", "rich>=13.0"]
+dependencies = ["click>=8.1", "pyyaml>=6.0", "rich>=13.0", "anthropic>=0.40"]
 
 [project.scripts]
 sovereign = "sovereign_legal.cli:main"
