@@ -1,0 +1,27 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+*.egg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if morpheme-page integration)
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

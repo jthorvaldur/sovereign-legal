@@ -1,0 +1,15 @@
+name: sovereign-legal
+language:
+  primary: python
+category: legal
+visibility: public
+uses:
+  vector_db: true
+  llm_agents: true
+  web_publish: true
+required_files:
+  - INTENT.md
+  - CLAUDE.md
+forbidden_files:
+  - .env
+  - secrets.json
