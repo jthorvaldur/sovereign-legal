@@ -53,3 +53,7 @@ sovereign-legal/
 ---
 
 Managed by [policy-orchestrator](https://github.com/jthorvaldur/policy-orchestrator). Category: legal.
+
+<!-- AUTO:footer -->
+Managed by [policy-orchestrator](https://github.com/jthorvaldur/policy-orchestrator). Category: legal. 5 commits, last updated 40 minutes ago.
+<!-- /AUTO:footer -->
