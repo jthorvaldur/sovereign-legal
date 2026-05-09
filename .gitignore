@@ -20,6 +20,9 @@ Thumbs.db
 # Node (if morpheme-page integration)
 node_modules/
 
+# Lockfile
+uv.lock
+
 # IDE
 .vscode/
 .idea/

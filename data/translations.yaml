@@ -122,3 +122,15 @@ alimony:
     created by state-licensed marriage dissolution proceedings, enforceable through
     commercial collection mechanisms and treated as a secured claim against future
     earnings and assets of the debtor spouse.
+entities:
+  common_english: Things that exist or have being, whether physical objects, organizations,
+    or abstract concepts that can be identified and discussed.
+  blacks_law: Legal persons or bodies recognized by law as having rights and duties,
+    including natural persons, corporations, partnerships, governmental bodies, and
+    other juridical entities capable of owning property and entering contracts.
+  natural_rights: Living beings endowed by their Creator with inherent rights, primarily
+    referring to natural persons (human beings) who possess unalienable rights to
+    life, liberty, and property by virtue of their existence.
+  commercial: Artificial legal constructs created by state charter or registration,
+    including corporations, LLCs, trusts, and other business forms that exist as legal
+    fictions for commercial purposes and are subject to state regulation and taxation.
