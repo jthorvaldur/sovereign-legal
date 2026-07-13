@@ -8,7 +8,6 @@ uses:
   llm_agents: true
   web_publish: true
 required_files:
-  - INTENT.md
   - CLAUDE.md
 forbidden_files:
   - .env
